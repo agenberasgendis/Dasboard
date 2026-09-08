@@ -1,0 +1,140 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny catch-all safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Product validation
+    function isValidProduct(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
+             data.category is string && data.category.size() <= 80 &&
+             data.unit is string && data.unit.size() <= 30 &&
+             data.stock is number &&
+             data.costPrice is number &&
+             data.sellPrice is number;
+    }
+
+    // Sale validation
+    function isValidSale(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.invoiceNumber is string && data.invoiceNumber.size() <= 50 &&
+             data.date is string &&
+             data.customerName is string && data.customerName.size() <= 120 &&
+             data.totalAmount is number &&
+             data.paymentMethod in ['TUNAI', 'TRANSFER', 'TEMPO'] &&
+             data.paymentStatus in ['LUNAS', 'BELUM_LUNAS'];
+    }
+
+    // Purchase validation
+    function isValidPurchase(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.invoiceNumber is string && data.invoiceNumber.size() <= 50 &&
+             data.date is string &&
+             data.supplierName is string && data.supplierName.size() <= 120 &&
+             data.totalAmount is number &&
+             data.paymentMethod in ['TUNAI', 'TRANSFER', 'TEMPO'];
+    }
+
+    // Stock movement validation
+    function isValidStockMovement(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.productId is string && data.productId.size() <= 128 &&
+             data.productName is string && data.productName.size() <= 150 &&
+             data.type in ['IN', 'OUT', 'ADJUST'] &&
+             data.quantity is number &&
+             data.unit is string &&
+             data.date is string;
+    }
+
+    // Expense validation
+    function isValidExpense(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.date is string &&
+             data.category is string && data.category.size() <= 80 &&
+             data.amount is number &&
+             data.description is string && data.description.size() <= 300;
+    }
+
+    // Store config validation
+    function isValidStoreConfig(data) {
+      return data.storeName is string && data.storeName.size() <= 150 &&
+             data.address is string && data.address.size() <= 300 &&
+             data.phone is string && data.phone.size() <= 50;
+    }
+
+    // Products collection
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isValidId(productId) && isValidProduct(incoming());
+      allow update: if isValidId(productId) && isValidProduct(incoming());
+      allow delete: if isValidId(productId);
+    }
+
+    // Sales collection
+    match /sales/{saleId} {
+      allow read: if true;
+      allow create: if isValidId(saleId) && isValidSale(incoming());
+      allow update: if isValidId(saleId) && isValidSale(incoming());
+      allow delete: if isValidId(saleId);
+    }
+
+    // Purchases collection
+    match /purchases/{purchaseId} {
+      allow read: if true;
+      allow create: if isValidId(purchaseId) && isValidPurchase(incoming());
+      allow update: if isValidId(purchaseId) && isValidPurchase(incoming());
+      allow delete: if isValidId(purchaseId);
+    }
+
+    // Stock movements collection
+    match /stockMovements/{movementId} {
+      allow read: if true;
+      allow create: if isValidId(movementId) && isValidStockMovement(incoming());
+      allow update: if isValidId(movementId) && isValidStockMovement(incoming());
+      allow delete: if isValidId(movementId);
+    }
+
+    // Expenses collection
+    match /expenses/{expenseId} {
+      allow read: if true;
+      allow create: if isValidId(expenseId) && isValidExpense(incoming());
+      allow update: if isValidId(expenseId) && isValidExpense(incoming());
+      allow delete: if isValidId(expenseId);
+    }
+
+    // Store configuration
+    match /storeConfig/{configId} {
+      allow read: if true;
+      allow create: if isValidId(configId) && isValidStoreConfig(incoming());
+      allow update: if isValidId(configId) && isValidStoreConfig(incoming());
+      allow delete: if isValidId(configId);
+    }
+
+    // Test connection doc
+    match /test/{testId} {
+      allow read, write: if true;
+    }
+  }
+}
